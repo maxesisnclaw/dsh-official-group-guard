@@ -1,6 +1,6 @@
 {
   "name": "dsh-official-group-guard",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Hide DeepSeek official model group in the dsh UI unless a Konami code is entered / 默认隐藏 dsh 官方模型分组，按 Konami 码显示",
   "type": "module",
   "main": "index.js",

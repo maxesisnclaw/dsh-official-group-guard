@@ -20,24 +20,34 @@ test('plugin exposes a name', () => {
   assert.equal(name, 'dsh-official-group-guard')
 })
 
-test('injects the guard into <head>, before app code', () => {
+test('injects style + script into <head>, before app code', () => {
   const tap = tapIndexOf()
   const page = '<!doctype html><html><head><title>dsh</title></head><body></body></html>'
   const out = tap(page)
   assert.match(out, /dsh-official-group-guard/)
+  assert.match(out, /<style id="dsh-official-group-guard-style">/)
   assert.ok(out.indexOf('dsh-official-group-guard') < out.indexOf('</head>'))
 })
 
-test('ships the konami sequence and the persistence key', () => {
+test('hides the picker group in CSS so the menu never mis-measures', () => {
+  const out = tapIndexOf()('<html><head></head><body></body></html>')
+  assert.match(out, /html\.dsh-ogg-hide \[class\$="_group"\]/)
+  assert.match(out, /:has\(button\[title\*="deepseek" i\]\)/)
+  assert.match(out, /:not\(:has\(button\[aria-checked="true"\]\)\)/)
+})
+
+test('ships the konami sequence, the persistence key and the fallback', () => {
   const out = tapIndexOf()('<html><head></head><body></body></html>')
   assert.match(out, /arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a/)
   assert.match(out, /dsh\.official-group\.visible/)
+  assert.match(out, /SUPPORTS_HAS/)
+  assert.match(out, /window\.dispatchEvent\(new Event\('resize'\)\)/)
 })
 
-test('hides by default and only reveals on demand', () => {
+test('hides the settings provider row by row name', () => {
   const out = tapIndexOf()('<html><head></head><body></body></html>')
-  assert.match(out, /localStorage\.getItem\(STORAGE_KEY\) === '1'/)
-  assert.match(out, /hide\(group, !show && !selected\)/)
+  assert.match(out, /hasSuffix\(row, '_rowCard'\)/)
+  assert.match(out, /hasSuffix\(el, '_rowName'\)/)
 })
 
 test('is idempotent', () => {
@@ -49,5 +59,5 @@ test('is idempotent', () => {
 
 test('falls back to prefixing without <head>', () => {
   const tap = tapIndexOf()
-  assert.ok(tap('<html><body></body></html>').startsWith('<script>'))
+  assert.ok(tap('<html><body></body></html>').startsWith('<style'))
 })
