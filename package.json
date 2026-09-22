@@ -1,0 +1,45 @@
+{
+  "name": "dsh-official-group-guard",
+  "version": "0.1.0",
+  "description": "Hide DeepSeek official model group in the dsh UI unless a Konami code is entered / 默认隐藏 dsh 官方模型分组，按 Konami 码显示",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxesisnclaw/dsh-official-group-guard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maxesisnclaw/dsh-official-group-guard/issues"
+  },
+  "homepage": "https://github.com/maxesisnclaw/dsh-official-group-guard#readme",
+  "keywords": [
+    "deepseek",
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "plugin",
+    "model-picker",
+    "konami",
+    "ui"
+  ],
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
