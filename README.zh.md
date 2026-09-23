@@ -41,6 +41,26 @@ dsh plugin --profile web add github:maxesisnclaw/dsh-official-group-guard
 - 菜单是点开才渲染的 → 用 `MutationObserver` 持续重新应用。
 - 判定"官方"：分组标题或选项文案命中 `/deepseek|official|官方/i`。
 
+
+## 迭代方式（重要）
+
+注入的样式与脚本放在**外部文件 `client.html`**，插件每次首页请求按 mtime 读一次：
+
+```bash
+vi ~/claw-work/dsh-plugins/dsh-official-group-guard/client.html   # 改样式/逻辑
+# 浏览器 Ctrl+Shift+R 即可生效 —— 不需要重启 dsh
+```
+
+只有**插件代码本身**（`index.js` / `cordis.patch.yml`）改动才需要重启。可用环境变量
+`DSH_OFFICIAL_GROUP_GUARD_CLIENT` 指定其它路径。
+
+## 已知时序问题与处理
+
+模型选择器的菜单坐标是组件**测量后写进 state** 的（`style: menuPos ?? MEASURE_STYLE`），
+而选项数据（`title`）可能晚于首帧到达 —— 隐藏若发生在测量之后就表现为"菜单浮空"。
+因此：CSS 有两条路径（按 `title` 匹配 + 按 JS 打的 `data-dsh-ogg` 标记），并且**隐藏集合一变就派发
+`resize`** 让组件重新测量（组件监听 `resize`/`scroll`），菜单出现后还会在若干帧上各测一次。
+
 ## 边界（重要）
 
 这是**可见性遮挡，不是权限隔离**。模型清单仍会下发到浏览器（打开开发者工具能看到），服务端也没有变化。要真正限制使用，得从服务端下手（例如让出网中转只在特定条件下接受请求）。

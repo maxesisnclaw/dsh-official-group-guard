@@ -1,0 +1,135 @@
+<style id="dsh-official-group-guard-style">
+  /* 模型选择器：隐藏官方分组。两条规则并存——
+     1) 按选项 title 匹配：数据已就绪时首帧即生效（最优路径）
+     2) 按 JS 打的标记匹配：数据晚到时由脚本补打，随后触发重新测量 */
+  html.dsh-ogg-hide [class$="_group"]:has(button[title*="deepseek" i]):not(:has(button[aria-checked="true"])),
+  html.dsh-ogg-hide [data-dsh-ogg="1"]:not([data-dsh-ogg-keep="1"]) {
+    display: none;
+  }
+</style>
+<script>
+(() => {
+  if (window.__dshOfficialGroupGuard) return;
+  window.__dshOfficialGroupGuard = true;
+
+  const STORAGE_KEY = 'dsh.official-group.visible';
+  const HIDE_CLASS = 'dsh-ogg-hide';
+  const KONAMI = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+  const OFFICIAL = /deepseek|official|官方/i;
+  const SUPPORTS_HAS = (() => { try { return CSS.supports('selector(:has(*))'); } catch { return false; } })();
+
+  if (window.__dshOfficialGroup === undefined) window.__dshOfficialGroup = null;
+  const isVisible = () => window.__dshOfficialGroup === true || localStorage.getItem(STORAGE_KEY) === '1';
+
+  const hasSuffix = (el, suffix) => Array.from(el.classList || []).some((c) => c.endsWith(suffix));
+  const label = (el) => ((el && (el.getAttribute('title') || el.textContent)) || '').trim();
+
+  function toast(message) {
+    const box = document.createElement('div');
+    box.textContent = message;
+    box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;padding:10px 14px;border-radius:8px;' +
+      'background:rgba(20,20,24,.92);color:#fff;font:13px/1.4 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35)';
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 1800);
+  }
+
+  /**
+   * 选择器菜单的坐标是组件测量后写进 state 的（style: menuPos ?? MEASURE_STYLE），
+   * 而数据（选项 title）可能晚于首帧到达 —— 隐藏发生在测量之后就表现为"浮空"。
+   * 组件监听 window 的 resize/scroll，所以隐藏集合一变就派发 resize 让它重新测量。
+   * 用"计数签名"而不是元素身份，避免 React 重建节点导致无限重测。
+   */
+  let lastSignature = '';
+  let nudges = 0;
+  function nudge(signature) {
+    if (signature === lastSignature) return;
+    lastSignature = signature;
+    if (nudges > 12) return;
+    nudges += 1;
+    try { window.dispatchEvent(new Event('resize')); } catch {}
+  }
+
+  function markPickerGroups() {
+    let hidden = 0;
+    let total = 0;
+    const show = isVisible();
+    document.querySelectorAll('[class$="_group"]').forEach((group) => {
+      const buttons = Array.from(group.querySelectorAll('button'));
+      if (buttons.length === 0) return;
+      total += 1;
+      const official = buttons.some((b) => OFFICIAL.test(label(b)));
+      const selected = buttons.some((b) => b.getAttribute('aria-checked') === 'true');
+      if (!official) { delete group.dataset.dshOgg; delete group.dataset.dshOggKeep; return; }
+      group.dataset.dshOgg = '1';
+      // 当前会话正在用官方模型时保留整组可用（同事在同一会话里照常能用，不会被切走）
+      if (selected) group.dataset.dshOggKeep = '1'; else delete group.dataset.dshOggKeep;
+      if (!show && !selected) hidden += 1;
+      // 不支持 :has() 的浏览器退回内联样式
+      if (!SUPPORTS_HAS) {
+        if (!show && !selected) { group.style.display = 'none'; group.dataset.dshOggHidden = '1'; }
+        else if (group.dataset.dshOggHidden === '1') { group.style.display = ''; delete group.dataset.dshOggHidden; }
+      }
+    });
+    return `${hidden}/${total}`;
+  }
+
+  function applyToSettings(show) {
+    document.querySelectorAll('[class*="_rowCard"]').forEach((row) => {
+      if (!hasSuffix(row, '_rowCard')) return;
+      const name = Array.from(row.querySelectorAll('*')).find((el) => hasSuffix(el, '_rowName'));
+      if (!name || !OFFICIAL.test(label(name))) return;
+      if (!show) { row.style.display = 'none'; row.dataset.dshOggHidden = '1'; }
+      else if (row.dataset.dshOggHidden === '1') { row.style.display = ''; delete row.dataset.dshOggHidden; }
+    });
+  }
+
+  function apply() {
+    const show = isVisible();
+    document.documentElement.classList.toggle(HIDE_CLASS, !show);
+    applyToSettings(show);
+    nudge(markPickerGroups());
+  }
+
+  let progress = 0;
+  window.addEventListener('keydown', (event) => {
+    const key = String(event.key || '').toLowerCase();
+    if (key === KONAMI[progress]) {
+      progress += 1;
+      if (progress === KONAMI.length) {
+        progress = 0;
+        const next = !isVisible();
+        window.__dshOfficialGroup = next;
+        try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {}
+        nudges = 0;
+        lastSignature = '';
+        toast(next ? '官方分组：已显示（本浏览器）' : '官方分组：已隐藏');
+        apply();
+      }
+      return;
+    }
+    progress = key === KONAMI[0] ? 1 : 0;
+  }, true);
+
+  // 菜单是点开才渲染的：出现后连续几帧各测一次，覆盖"数据晚到"的情形
+  function onMenuAppear() {
+    nudges = 0;
+    lastSignature = '';
+    [0, 60, 200, 500, 1200].forEach((delay) => setTimeout(apply, delay));
+  }
+
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node.nodeType === 1 && (hasSuffix(node, '_menu') || node.querySelector?.('[class$="_menu"]'))) {
+          onMenuAppear();
+        }
+      }
+    }
+    apply();
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
+  document.addEventListener('DOMContentLoaded', apply);
+  apply();
+  console.log('dsh-official-group-guard: enabled (', isVisible() ? 'official group visible' : 'official group hidden', ')');
+})();
+</script>

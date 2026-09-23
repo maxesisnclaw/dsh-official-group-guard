@@ -41,6 +41,22 @@ dsh's CSS-module class names look like `<hash>_group` / `<hash>_rowCard`: the ha
 builds but the key suffix does not, so selectors match on the suffix (`[class*="_group"]` plus an
 exact `classList` suffix check) and a `MutationObserver` re-applies after every render.
 
+
+## Iterating on the injected UI
+
+The injected style/script lives in an **external file `client.html`**, read per index request (mtime
+cached): edit it and hard-reload the browser — **no dsh restart needed**. Only changes to the plugin
+code itself (`index.js` / `cordis.patch.yml`) require a restart. Override the path with
+`DSH_OFFICIAL_GROUP_GUARD_CLIENT`.
+
+## Known timing issue and how it is handled
+
+The picker stores its measured position in component state (`style: menuPos ?? MEASURE_STYLE`), and
+the option data (`title`) can arrive after the first paint — hiding after that measurement shows up
+as a floating menu. So the CSS has two paths (option-`title` match plus a JS `data-dsh-ogg` tag) and
+**dispatches `resize` whenever the hidden set changes** so the component re-measures (it listens to
+`resize`/`scroll`), plus a few extra re-applies on the frames right after the menu appears.
+
 ## Boundary (important)
 
 This is **visual occlusion, not access control**: the catalogue still reaches the browser (visible in

@@ -20,32 +20,39 @@ test('plugin exposes a name', () => {
   assert.equal(name, 'dsh-official-group-guard')
 })
 
-test('injects style + script into <head>, before app code', () => {
+test('injects the external client markup into <head>, before app code', () => {
   const tap = tapIndexOf()
   const page = '<!doctype html><html><head><title>dsh</title></head><body></body></html>'
   const out = tap(page)
   assert.match(out, /dsh-official-group-guard/)
   assert.match(out, /<style id="dsh-official-group-guard-style">/)
-  assert.ok(out.indexOf('dsh-official-group-guard') < out.indexOf('</head>'))
+  assert.match(out, /<script>/)
+  assert.ok(out.indexOf('dsh-official-group-guard-style') < out.indexOf('</head>'))
 })
 
-test('hides the picker group in CSS so the menu never mis-measures', () => {
+test('hides the picker group by option title (first paint) and by JS tag (late data)', () => {
   const out = tapIndexOf()('<html><head></head><body></body></html>')
-  assert.match(out, /html\.dsh-ogg-hide \[class\$="_group"\]/)
-  assert.match(out, /:has\(button\[title\*="deepseek" i\]\)/)
-  assert.match(out, /:not\(:has\(button\[aria-checked="true"\]\)\)/)
+  assert.match(out, /html\.dsh-ogg-hide \[class\$="_group"\]:has\(button\[title\*="deepseek" i\]\)/)
+  assert.match(out, /html\.dsh-ogg-hide \[data-dsh-ogg="1"\]:not\(\[data-dsh-ogg-keep="1"\]\)/)
 })
 
-test('ships the konami sequence, the persistence key and the fallback', () => {
+test('re-measures the menu after hiding so it cannot stay floating', () => {
+  const out = tapIndexOf()('<html><head></head><body></body></html>')
+  assert.match(out, /window\.dispatchEvent\(new Event\('resize'\)\)/)
+  assert.match(out, /onMenuAppear/)
+  assert.match(out, /\[0, 60, 200, 500, 1200\]/)
+})
+
+test('keeps a session that already runs an official model usable', () => {
+  const out = tapIndexOf()('<html><head></head><body></body></html>')
+  assert.match(out, /aria-checked/)
+  assert.match(out, /dshOggKeep/)
+})
+
+test('ships the konami sequence, the persistence key and the settings-page rule', () => {
   const out = tapIndexOf()('<html><head></head><body></body></html>')
   assert.match(out, /arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a/)
   assert.match(out, /dsh\.official-group\.visible/)
-  assert.match(out, /SUPPORTS_HAS/)
-  assert.match(out, /window\.dispatchEvent\(new Event\('resize'\)\)/)
-})
-
-test('hides the settings provider row by row name', () => {
-  const out = tapIndexOf()('<html><head></head><body></body></html>')
   assert.match(out, /hasSuffix\(row, '_rowCard'\)/)
   assert.match(out, /hasSuffix\(el, '_rowName'\)/)
 })
